@@ -52,10 +52,11 @@ function isValidType(transactionType) {
   return false;
 }
 
-app.get("/account", shouldExistsAccountWithCPF, (request, response) => {
+app.get("/account/:cpf", shouldExistsAccountWithCPF, (request, response) => {
   const { customer } = request;
   return response.json(customer);
-})
+});
+
 app.post("/account", shouldNotAlreadyExistsAccountWithCpf, (request, response) => {
   const { cpf, name } = request.body;
   const id = uuidv4();
