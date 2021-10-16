@@ -5,6 +5,11 @@ app.use(express.json());
 
 const customers = [];
 
+const OPERATION_TYPES = {
+  DEPOSIT: 'deposit',
+  WITHDRAW: 'withdraw',
+};
+
 function shouldNotAlreadyExistsAccountWithCpf(request, response, next) {
   const { cpf } = request.body;
 
@@ -14,29 +19,36 @@ function shouldNotAlreadyExistsAccountWithCpf(request, response, next) {
 
   return next();
 };
+
 function shouldExistsAccountWithCPF(request, response, next) {
   const { cpf } = request.params;
-  console.log(cpf);
   const customerFind = customers.find((customer) => customer.cpf === cpf);
 
   if (!customerFind) {
     return response.status(400).json({ error: "Customer not found"});
   }
-  console.log(customerFind);
 
   request.customer = customerFind;
   return next();
 };
-function getBalance(statment) {
-  const balance = statment.reduce((acc, operation) => {
-    if (operation.type === "credit") {
-      return acc + operation.amount;
+
+function getBalance(transactions) {
+  const balance = transactions.reduce((acc, transaction) => {
+    if (transaction.type === OPERATION_TYPES.DEPOSIT) {
+      return acc + transaction.amount;
     } else {
-      return acc - operation.amount;
+      return acc - transaction.amount;
     }
   }, 0);
 
   return balance;
+};
+
+function isValidType(transactionType) {
+  if (transactionType && OPERATION_TYPES[transactionType.toUpperCase()]) {
+    return true;
+  }
+  return false;
 }
 
 app.post("/account", shouldNotAlreadyExistsAccountWithCpf, (request, response) => {
@@ -47,7 +59,7 @@ app.post("/account", shouldNotAlreadyExistsAccountWithCpf, (request, response) =
     cpf,
     name,
     id,
-    statment: [],
+    transactions: [],
   };
 
   customers.push(newCustomers);
@@ -55,23 +67,18 @@ app.post("/account", shouldNotAlreadyExistsAccountWithCpf, (request, response) =
   response.status(201).send();
 });
 
-app.get("/statment/:cpf", shouldExistsAccountWithCPF, (request, response) => {  
-  const { customer } = request;
-  return response.json(customer)
-});
-
 app.post("/deposit/:cpf", shouldExistsAccountWithCPF, (request, response) => {
   const { customer } = request;
   const { description, amount } = request.body;
 
-  const statementOperation = {
+  const transaction = {
     description,
     amount,
     created_at: new Date(),
-    type: "credit",
+    type: OPERATION_TYPES.DEPOSIT,
   }
 
-  customer.statment.push(statementOperation);
+  customer.transactions.push(transaction);
   return response.status(201).send()
 });
 
@@ -79,20 +86,42 @@ app.post("/withdraw/:cpf", shouldExistsAccountWithCPF, (request, response) => {
   const { customer } = request;
   const { amount } = request.body;
 
-  const balance = getBalance(customer.statment);
+  const balance = getBalance(customer.transactions);
 
   if (balance < amount) {
     return response.status(400).json({ error: "Insufficient funds!"});
   }
 
-  const statmentOperation = {
+  const transaction = {
     amount,
     created_at: new Date(),
-    type: "debit",
+    type: OPERATION_TYPES.WITHDRAW,
   };
 
-  customer.statment.push(statmentOperation);
+  customer.transactions.push(transaction);
   return response.status(201).send();
+});
+
+app.get("/transactions/:cpf", shouldExistsAccountWithCPF, (request, response) => {
+  const {customer} = request;
+  const {date, transactionType} = request.query;
+
+  const report = {
+    transactions: customer.transactions
+  };
+
+  const actualAmount = getBalance(customer.transactions);
+
+  if (date) {
+    report.transactions = report.transactions.filter(transaction => transaction.created_at >= new Date(date));
+  }
+
+  if (isValidType(transactionType)) {
+    report.transactions = report.transactions.filter( transaction => transaction.type === transactionType );
+  }
+
+  const { transactions } = report;
+  return response.json({ transactions, actualAmount});
 });
 
 app.listen(3333);
