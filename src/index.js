@@ -1,5 +1,6 @@
 const express = require('express');
 const { v4: uuidv4} = require("uuid");
+const {request, response} = require("express");
 const app = express();
 app.use(express.json());
 
@@ -51,6 +52,10 @@ function isValidType(transactionType) {
   return false;
 }
 
+app.get("/account", shouldExistsAccountWithCPF, (request, response) => {
+  const { customer } = request;
+  return response.json(customer);
+})
 app.post("/account", shouldNotAlreadyExistsAccountWithCpf, (request, response) => {
   const { cpf, name } = request.body;
   const id = uuidv4();
@@ -65,6 +70,17 @@ app.post("/account", shouldNotAlreadyExistsAccountWithCpf, (request, response) =
   customers.push(newCustomers);
 
   response.status(201).send();
+});
+
+app.put("/account/:cpf", shouldExistsAccountWithCPF, (request, response) => {
+  const { customer } = request;
+  const { name } = request.body;
+
+  if (!name) {
+    return response.status(400).json({error: 'Required fields not present in your request!'});
+  }
+  customer.name = name;
+  return response.status(200).json(customer);
 });
 
 app.post("/deposit/:cpf", shouldExistsAccountWithCPF, (request, response) => {
