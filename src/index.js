@@ -85,8 +85,12 @@ app.put("/account/:cpf", shouldExistsAccountWithCPF, (request, response) => {
 });
 
 app.delete("/account/:cpf", shouldExistsAccountWithCPF, (request, response) => {
-  const { cpf } = request.customer;
-  const index = customers.findIndex(customer => customer.cpf === cpf);
+  const { customer } = request;
+  const index = customers.indexOf(customer);
+
+  if (getBalance(customer.transactions) !== 0) {
+    return response.status(400).json({error: 'Can not delete account with positive amount!'});
+  }
 
   customers.splice(index, 1);
   return response.status(204).json({message: 'Deleted with success!'});
