@@ -85,9 +85,10 @@ app.put("/account/:cpf", shouldExistsAccountWithCPF, (request, response) => {
 });
 
 app.delete("/account/:cpf", shouldExistsAccountWithCPF, (request, response) => {
-  const { customer } = request;
-  customers.splice(customer, 1);
+  const { cpf } = request.customer;
+  const index = customers.findIndex(customer => customer.cpf === cpf);
 
+  customers.splice(index, 1);
   return response.status(204).json({message: 'Deleted with success!'});
 });
 app.post("/deposit/:cpf", shouldExistsAccountWithCPF, (request, response) => {
